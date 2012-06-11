@@ -1,0 +1,223 @@
+\documentclass[a4paper,10pt]{book}
+\usepackage[utf8x]{inputenc}
+\usepackage{graphicx}
+\DeclareGraphicsRule{.eps}{eps}{}{}
+\usepackage{hyperref}
+
+\title{Controller Area Network}
+\author{Federico Vaga}
+\date{Giugno 2012}
+
+\begin{document}
+% stampa la licenza CC BY-NC-SA_2.5_IT
+\input{licenza/CreativeCommons/BY-NC-SA_2.5_IT/BY-NC-SA_2.5_IT.tex}
+
+\tableofcontents
+\listoffigures
+
+\chapter{Introduzione}
+\section{Storia del protocollo}
+Il \textit{Controller Area Network}, abbreviato in \textit{CAN}, è un
+protocollo di comunicazione seriale ideato da Bosch negli anni '80.
+Questo protocollo è stato espressamente progettato per resistere a
+forti interferenze dovute ad onde elettromagnetiche esterne; questo
+suo punto di forza fa si che il protocollo CAN trovi largo utilizzo
+nel settore automotive e nel settore dell'automazione industriale.
+Il lavoro a questo protocollo iniziò nel 1983 e fu ufficialmente
+rilasciato nel 1986; nel 1987 fu commercializzato il primo controller
+CAN prodotto da Intel e Philips; nel 1991 Bosch rilascia le
+specifiche per il CAN 2.0.
+\newline
+
+Dal 1996 negli Stati Uniti d'America tutti i veicoli commercializzati
+devono sottostare allo standard \textit{OBD-II} per la diagnostica di
+bordo, e il protocollo CAN è uno dei cinque protocolli consentiti. In
+Europa dal 2001 è obbligo rispettare lo standard EOBD per i veicoli a
+benzina, mentre dal 2004 per quelli a diesel; anche per lo standard
+europeo il protocollo CAN è uno di quelli ammessi.
+\newline
+
+In protocollo CAN è riconosciuto come standard con il rilascio dell'
+ISO 11898.
+
+\section{Caratteristiche principali}
+Come accennato in precedenza, il protocollo CAN è stato progettato
+per essere molto robusto alle interferenze ed essere immune da errori
+di trasmissione. Questa grande resistenza è dovuta all'applicazione
+della specifica RS-485 del livello fisico del modello OSI. La
+specifica definisce la trasmissione di un dato mediante la differenza
+di potenziale su due differenti fili; quindi avremo uno stato logico
+alto quando la differenza di potenziale è superiore a $0.2V$, basso
+quando inferiore. La resistenza al rumore può essere aumentata
+realizzando un doppino intrecciato (twisted pair).
+\newline
+
+Il protocollo garantisce una velocità di trasmissione massima di
+$1\frac{Mb}{s}$ per distanze non superiori a $40m$; distanze
+maggiori sono raggiungibili a velocità inferiori.
+\newline
+
+I protocollo è basato su una comunicazione broadcast, quindi tutti i
+nodi ascoltano le comunicazioni che avvengono sul bus anche quando
+non sono dirette a loro. In questo modo è molto semplice rimuovere o
+aggiungere nodi alla rete senza dover effettuare alcuna modifica
+hardware o software. La trasmissione è message-ortiended, ovvero
+basata sui messaggi; ogni messaggio contiene un identificativo
+univoco che identifica l'origine del messaggio all'interno della rete
+
+\chapter{La specifica}
+La standard CAN descrive i livelli fisico e data link del modello
+\textit{ISO/OSI} per la connessione fra calcolatori.
+\section{Livello fisico}
+Il livello fisico è costituito da due cavi denominati \textit{CAN\_H}
+e \textit{CAN\_L}. I livelli logici trasmessi sono definiti
+\textit{dominante} e \textit{recessivo}; non c'è una corrispondenza
+diretta con i classici stati logici 1 e 0, perché questo dipende da
+come i nodi si interfacciano con il bus. Durante la trasmissione i
+bit dominanti hanno sempre la precedenza sui bit recessivi; se
+durante una trasmissione i nodi inviano un bit recessivo ma un
+diverso nodo invia un bit dominante, allora il bit che effettivamente
+è trasmesso sul bus è quello dominante. Tutti i nodi che
+trasmettevano un bit recessivo si accorgono della presenza del bit
+dominante, quindi smettono di trasmettere e rimangono in ascolto.
+
+I nodi possono essere \textit{OR-Wired} oppure \textit{AND-Wired};
+nel primo caso avremo la corrispondenza dominante:1, recessivo:0; nel
+secondo caso la corrispondenza è dominante:0 recessivo:1
+
+%FIXME figura dei circuit per fare or wired e and wired
+
+Questo livello è diviso in tre sottolivelli: PLS, PMA, MDI
+\subsection{Sottolivello PLS}
+La sigla PLS corrisponde a \textit{Physical Signaling}. Questo
+sottolivello si occupa della sincronizzazione e della temporizzazione
+dei segnali attraverso la tecnica di \textit{bit stuffing}, ovvero
+l'inserimento di un bit di controllo all'interno della comunicazione.
+Nel nostro caso, ogni 5 bit viene inserito un bit di polarità
+inversa; questo facilita la sincronizzazione fra i nodi.
+\newline
+
+Il \textit{bit-time}, ovvero la durata di un bit, è suddivisa in
+quattro parti dette \textit{segment}, ciascuna multipla del
+\textit{time-quantum} \textit{TQ}. Il TQ è l'unità di tempo usata dal
+protocollo per suddividere il tempo; esso è definito mediante l'uso di
+un oscillatore locale. Le quattro parti che compongono la trasmissione
+di un bit sono:
+\begin{description}
+ \item[Syncronization] dura 1TQ ed è utilizzata per inserire fronti
+di commutazione e sincronizzazione fra i nodi.
+ \item[Propagation time] può durare da 1 a 8 TQ, è utilizzato per
+compensare i ritardi di trasmissione/ricezione.
+ \item[Phase 1 e 2] entrambe i segmenti hanno la stessa durata che
+può variare da 1 a 8 TQ. Fra i due segmenti viene posto il
+\textit{sample-point}, ovvero il punto in cui viene letto il livello
+presente sul bus. L'ampiezza di questi due segmenti è regolata di modo
+da compensare le fasi. Il sistema verifica la sincronizzazione fra
+nodi durante la transizione fra recessivo e dominante e calcola la
+distanza del fronte con il sample-point; questa distanza
+\underline{deve} essere sempre la stessa. I fronti sono rilevati ad
+ogni TQ e viene confrontato lo stato della linea con lo stato
+dell'ultimo sample-point. Per mantenere costante la distanza fra il
+fronte e il sample-point, i segmenti di fase devono essere
+opportunamente dimensionati; è possibile definire un limite
+all'allungamento o accorciamento di queste fasi medianto il parametro
+di \textit{Syncronization Jump Width} \textit{SJW} che può variare da
+1 a 4 TQ; questo procedimento è detto \textit{bit resynchronization}.
+Un metodo alternativo è quello di resettare il bit time ogni volta
+che si presenza un fronte, tecnica denominata \textit{hard
+synchronization}
+\end{description}
+
+%FIXME immagine per spiegare meglio
+
+\subsection{Sottolivello PMA}
+La sigla PMA corrisponde a \textit{Physical Medium Attachment}. Lo
+scopo di questo livello è definire come i nodi vengono collegati al
+bus. Il PMA prevede 3 componenti:
+\begin{description}
+ \item[Transceiver] è un buffer bidirezionale per l'accesso al bus
+quindi rileva la differenza fra CAN\_H e CAN\_L
+ \item[Controller] è il componente che si occupa della trasmissione e
+ricezione dei dati sul bus
+ \item[Microcontroller] è il dispositivo che si occupa di gestire
+transceiver e controller, quindi di decidere cosa trasmettere e
+analizzare i dati ricevuti.
+\end{description}
+
+%FIXME immagine
+
+\subsection{Sottolivello MDI}
+La sigla MDI corrisponde a \textit{Medium Dependent Interface}. A
+questo livello sono definite le caratteristiche elettriche e fisiche:
+come sono connessi i nodi, impedenze di adattamento, ritardi di linea
+ecc.
+
+\section{Livello Data-link}
+Il livello data-link si occupa della definizione di come sono
+strutturati i messaggi, di come vengono trattati gli errori, di come
+vengono convalidati i messaggi, di come isolare i nodi malfunzionanti
+e delle regole di arbitraggio.
+\subsection{Formato messaggi}
+Il protocollo CAN riconosce 5 tipi di formati messaggi:
+\begin{description}
+ \item[Data Frame] è un messaggio che contiene dati utili; ogni
+ricevente può decidere se usarli o scartarli.
+ \item[Remote Frame] è un messaggio simile al data frame, ma privo
+della parte dati; esso è utilizzato come \textit{data request}.
+ \item[Error Frame] è un messaggio inviato da un nodo che rileva un
+errore e provoca il re-invio di un messaggio. Se un nodo rileva un
+alto tasso di errore si esclude dalla rete.
+ \item[Overload] è un messaggio inviato da un nodo occupato per
+chiedere di ritardare la spedizione del prossimo messaggio
+ \item[Interframe Space] è un messaggio che precede ciascun data
+frame e remote frame di modo da permettere la separazione fra questi
+due tipi di messaggio.
+\end{description}
+
+\subsubsection{Data Frame e Remote Frame}
+Un \textit{Data Frame} o \textit{Remote Frame} è costituito da 10
+campi:
+
+\begin{description}
+ \item[SOF]: Start Of Frame, 1 bit dominante per per indicare
+l'inizio del frame
+ \item[Arbitration field]: può essere lungo 11 o 29 bit; esso è un
+identificatore di messaggio
+ \item[RTR]: Remote Transmission Request, 1bit che serve a distinguere
+fra Data Frame e Remote Frame; è dominante nel caso del Data Frame,
+mentre è recessivo nel caso del Remote Frame. In questo modo la
+trasmissione dati ha priorità maggiore della richiesta.
+ \item[IDE]: 1 bit riservato
+ \item[r0]: 1 bit riservato
+ \item[DLC]: 4 bit per indicare la lunghezza del campo Data Field
+ \item[Data Field]: da 0 a 8 Byte di dati. Nel caso del Remote Frame,
+questo campo è assente, quindi DLC è 0.
+ \item[CRC]: 15bit di CRC più uno aggiuntivo sempre recessivo.
+ \item[ACK]: 2 bit recessivi, denominati \textit{Slot} e
+\textit{Delimiter}; se almeno un nodo destinatario ha ricevuto il
+messaggio \textit{Slot} viene da esso sovrascritto con un bit
+dominante. Questo garantisce che il messaggio è stato consegnato,
+anche se non sappiamo chi ha ricevuto il messaggio.
+ \item[EOF]: End Of Frame, 7 bit recessivi indicano la fine del frame.
+\end{description}
+
+\subsubsection{Error Frame}
+\subsubsection{Overload}
+\subsubsection{Interframe Space}
+Come accennato è frame usato per separare i Data Frame dai Remote
+Frame. Questo frame è costituito da una sequenza di bit tutti
+recessivi. Durante la trasmissione dei primi tre bit recessivi, detti
+\textit{intermission}, nessun nodo può inviare Data Frame o Remote
+Frame; tuttavia possono essere inviati frame di altro tipo. A seguire
+una sequenza di 8 bit recessivi utilizzati da un nodo soggetto ad
+errori come attesa per inviare nuovamente il proprio messaggi; altri
+nodi però possono iniziare una nuova trasmissione, quindi il nodo
+soggetto ad errore può decidere se accettare il nuovo frame in
+trasmissione o rifiutarlo a secondo che il suo stato sia,
+rispettivamente, \textit{error passive} o \textit{non error passive}.
+Infine una sequenza di lunghezza non specificata di bit recessivi per
+indicare lo stato di \textit{Bus Idle}, ovvero non ci sono
+trasmissioni in corso.
+
+
+\end{document}

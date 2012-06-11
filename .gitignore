@@ -1,3 +1,7 @@
+*.pdf
+*.kilepr
+*.backup
+*~
 *.aux
 *.bbl
 *.blg
