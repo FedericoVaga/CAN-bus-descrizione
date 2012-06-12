@@ -7,13 +7,11 @@
 \title{Controller Area Network}
 \author{Federico Vaga}
 \date{Giugno 2012}
-
+\makeindex
 \begin{document}
+\maketitle
 % stampa la licenza CC BY-NC-SA_2.5_IT
 \input{licenza/CreativeCommons/BY-NC-SA_2.5_IT/BY-NC-SA_2.5_IT.tex}
-
-\tableofcontents
-\listoffigures
 
 \chapter{Introduzione}
 \section{Storia del protocollo}
@@ -201,8 +199,6 @@ anche se non sappiamo chi ha ricevuto il messaggio.
  \item[EOF]: End Of Frame, 7 bit recessivi indicano la fine del frame.
 \end{description}
 
-\subsubsection{Error Frame}
-\subsubsection{Overload}
 \subsubsection{Interframe Space}
 Come accennato è frame usato per separare i Data Frame dai Remote
 Frame. Questo frame è costituito da una sequenza di bit tutti
@@ -219,5 +215,100 @@ Infine una sequenza di lunghezza non specificata di bit recessivi per
 indicare lo stato di \textit{Bus Idle}, ovvero non ci sono
 trasmissioni in corso.
 
+\subsubsection{Overload}
+Questo tipo di messaggio consiste in una sequenza di bit il cui scopo
+è ritardare l'emissione di Data Frame o Remote Frame; questo consente
+ai nodi in stato \textit{busy} di terminare la propria elaborazione e
+quindi poter accettare nuovi messaggi.
+
+Un Overload Frame può essere inviato solo durante i primi 3 bit di un
+Interframe.
+
+Il messaggio è costituito da due campi. Il primo campo è detto
+\textit{flag} e consiste in 6bit dominanti che possono essere inviati
+durante la trasmissione dell'intermission di un Interframe. Tutti i
+nodi rilevano la situazione di overload e rispondono con un flag di
+overload. Se il flag viene inviato dopo l'intermission, questi
+vengono interpretati come parte di un Data Frame o Remote Frame, ma
+genereranno degli errori.
+
+Il secondo campo è detto \textit{delimiter}; esso consiste in 8 bit
+recessivi che indicano la fine del frame.
+
+Un frame di overload ritarda la comunicazione di tutti i nodi
+pertanto non è permesso avere più di due overload consecutivi da
+parte di uno stesso nodo, il quale altrimenti potrebbe generare uno
+stallo su tutto il bus.
+
+\subsubsection{Rilevamento degli errori e Error Frame}
+Le cause di errore possono essere di diverso tipo: sfasamento del
+sample-point, soglie di riconoscimento differenti, attenuazione del
+segnale. Quando un controller rileva un errore invia un Error Frame,
+quindi tutti i nodi collegati ignorano il messaggio non valido;
+quindi il controller ritrasmette il messaggio originale.
+
+Un controller rileva errori in diverse situazioni:
+\begin{description}
+ \item[Bit monitoring].Quando un nodo vince l'arbitraggio e i suoi bit
+inviati sono diversi da quelli che effettivamente si trovano
+sul bus, si ha un \textit{bit error}.
+ \item[Bit stuffing]. Se sul bus vengono rilevati più di 6 bit
+consecutivi uguali, si ha uno \textit{stuff error}. Come spiegato in
+precedenza, ogni 5bit ne viene inviato uno di polarità opposta, se
+questo non accade si è in una situazione di errore.
+ \item[Frame check]. Si ha quando il formato non corrisponde ad uno
+dei tipi di messaggio riconosciuti.
+ \item[CRC]. Il codice di CRC ricevuto non corrisponde alla sequenza
+di bit ricevuti.
+ \item[Acknowledgment]. Se nessun nodo imposta il bit di ack a
+dominante, significa che nessuno ha ricevuto il messaggio, quindi si
+rileva una situazione di errore.
+\end{description}
+
+Ogni nodo tiene due contatori di errori: uno per contare gli errori
+di ricezione, l'altro per quelli in trasmissione. Ogni volta che
+viene rilevato un errore in ricezione il corrispondente contatore
+viene incrementato di un'unità; se l'errore avviene in fase di
+trasmissione il corrispondente contatore viene incrementato di 8. In
+caso di comunicazione avvenuta con successo il rispettivo contatore
+viene decrementato di un'unità.
+
+Fin tanto che entrambe i contatori sono inferiori a 128, il nodo si
+pone nello stato di \textit{error active}, quindi il nodo può inviare
+flag di errore. Se uno dei due contatori supera la soglia dei 128,
+allora il nodo è soggetto a frequenti errori quindi entra nello stato
+\textit{error passive} quindi non può effettuare una ritrasmissione
+del messaggio soggetto a errore, inoltre dovrà attendere un tempo
+maggiore per trasmettere. Infine, se un contatore raggiunge il valore
+di 256, allora il nodo è da considerarsi escluso dal bus perché
+soggetto a troppi errori, quindi si trova nello stato \textit{bus
+off}. Quando un nodo è nello stato di bus off è comunque possibile
+riabilitarlo attraverso opportuni comandi da parte dell'utente.
+
+Quando un nodo rileva un errore abbiamo detto che invia un Error
+Frame; questo frame è costituito da due campi come l'Overload frame:
+flag e delimeter. Il campo flag consiste in 6bit dominanti o
+recessivi. Se il nodo è nello stato di active error, userà bit
+dominanti di modo da sovrascrivere il bus e generare situazioni di
+errore anche negli altri nodi a causa del bit stuffing violato. Se
+invece si trova nello stato passive error, i bit inviati saranno di
+tipo recessivo, quindi non sovrascrivono il traffico.
+
+Nel caso di active error, quando gli altri nodi rilevano un errore,
+invieranno a loro volta un Error Frame, questo porta ad avere un
+massimo di 12bit dominanti consecutivi. Dopo questa sequenza di bit
+di flag, abbiamo 8bit di delimiter che indicano la fine del messaggio
+di errore.
+
+\subsection{Arbitraggio}
+Durante la trasmissione di Data Frame o Remote Frame, subito dopo il
+bit di SOF, viene inviata una sequenza di bit che indicano
+l'identificativo. Come già detto questa sequenza di bit è univoca sul
+bus, quindi due nodi non possono inviare lo stesso identificativo.
+Durante la trasmissione dell'identificativo viene deciso chi
+trasmette e chi ascolta. Se più nodi trasmettono contemporaneamente,
+quando uno dei due nodi trasmette un dominante e l'altro trasmette
+un recessivo, il primo nodo vince l'arbitraggio e il secondo rimane
+in ascolto sul bus.
 
 \end{document}
